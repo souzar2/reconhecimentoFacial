@@ -1,39 +1,68 @@
 import cv2
+import dlib
+import cmake
+import face_recognition as fr
 
-video_cap = cv2.VideoCapture(0)
-rostoCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-olhosCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
-sorrisoCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
+from PIL import Image
 
-while True:
-    ret, frame = video_cap.read()
+def main():
+    print("Se preferir, é possível digitar o caminho completo da imagem que será utilizada como teste...")
+    print("Se não, a foto utilizada como padrão do teste será a do Tony Stark")
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    rostos = rostoCascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(30, 30)
-    )
+    caminho_arquivo = input("Digite o caminho completo da imagem: ")
     
-    for (x, y, w, h) in rostos:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    try:
+        imgTest = fr.load_image_file(caminho_arquivo)
+        # Faça o processamento necessário com a imagem aqui
+        print("Imagem carregada com sucesso!")
+    except Exception as e:
+        imgTest = fr.load_image_file('Tony.jpg')
+        print("Erro ao abrir a imagem, a do Tony Stark será utilizada para o teste")
 
-    olhos = olhosCascade.detectMultiScale(gray, 1.2, 18)
-    for (x, y, w, h) in olhos:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+    video_cap = cv2.VideoCapture(0)
+    rostoCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    olhosCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+    sorrisoCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
 
-    sorriso = sorrisoCascade.detectMultiScale(gray, 1.7, 20)
-    for (x, y, w, h) in sorriso:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+    imgTest = cv2.cvtColor(imgTest, cv2.COLOR_BGR2RGB)
 
-    
+    corBorda = [255, 0, 0]
 
-    cv2.imshow('video', frame)
+    while True:
+        ret, frame = video_cap.read()
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-video_cap.release()
-cv2.destroyAllWindows()
+        rostos = rostoCascade.detectMultiScale(
+            rgb,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30)
+        )
+
+        rostoEncondings = fr.face_encodings(rgb)[0]
+        encodeTest = fr.face_encodings(imgTest)[0]
+
+        comparacao = fr.compare_faces([rostoEncondings], encodeTest)[0]
+
+        if comparacao:
+            corBorda = [0, 255, 0]
+        else:
+            corBorda = [0, 0, 255]
+        
+        for (x, y, w, h) in rostos:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (corBorda), 2)
+
+        cv2.imshow('video', frame)
+
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        
+    video_cap.release()
+    cv2.destroyAllWindows()
+
+
+
+if __name__ == "__main__":
+    main()
